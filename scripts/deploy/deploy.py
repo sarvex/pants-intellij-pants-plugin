@@ -23,7 +23,7 @@ def get_head_sha():
   p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
   output, _ = p.communicate()
   if p.returncode != 0:
-    logger.error("{} failed.".format(cmd))
+    logger.error(f"{cmd} failed.")
     exit(1)
 
   return output.decode().strip()
@@ -32,23 +32,27 @@ def get_head_sha():
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--tag', type=str, default='',
-                      help='If tag exists, this script will release to {} channel, otherwise {} channel.'
-                      .format(CHANNEL_STABLE, CHANNEL_BLEEDING_EDGE))
+  parser.add_argument(
+      '--tag',
+      type=str,
+      default='',
+      help=
+      f'If tag exists, this script will release to {CHANNEL_STABLE} channel, otherwise {CHANNEL_BLEEDING_EDGE} channel.',
+  )
   parser.add_argument('--skip-publish', action='store_true', default=False,
                       help='If true, skip the final process to upload the plugin.')
   args = parser.parse_args()
 
   # Make sure the $PLUGIN_XML is not modified after multiple runs,
   # since the workflow below may do so.
-  subprocess.check_output('git checkout {}'.format(PLUGIN_XML), shell=True)
+  subprocess.check_output(f'git checkout {PLUGIN_XML}', shell=True)
 
   tree = ET.parse(PLUGIN_XML)
   root = tree.getroot()
   version = root.find('version')
 
   if version is None:
-    logger.error("version tag not found in {}".format(PLUGIN_XML))
+    logger.error(f"version tag not found in {PLUGIN_XML}")
     exit(1)
 
   if args.tag:
@@ -57,14 +61,14 @@ if __name__ == "__main__":
     channel = CHANNEL_BLEEDING_EDGE
 
     sha = get_head_sha()
-    logger.info('Append current git sha, {}, to plugin version'.format(sha))
-    version.text = "{}.{}".format(version.text, sha)
+    logger.info(f'Append current git sha, {sha}, to plugin version')
+    version.text = f"{version.text}.{sha}"
 
     tree.write(PLUGIN_XML)
 
-  logger.info('Releasing {} to {} channel'.format(version.text, channel))
+  logger.info(f'Releasing {version.text} to {channel} channel')
 
-  zip_name = 'pants_{}.zip'.format(version.text)
+  zip_name = f'pants_{version.text}.zip'
 
   with open(os.devnull, 'w') as devnull:
     try:
@@ -86,7 +90,7 @@ if __name__ == "__main__":
         .format(jar=PLUGIN_JAR, zip=zip_name)
       logger.info(packaging_cmd)
       subprocess.check_output(packaging_cmd, shell=True, stderr=subprocess.STDOUT)
-      logger.info('{} built successfully'.format(zip_name))
+      logger.info(f'{zip_name} built successfully')
 
     except subprocess.CalledProcessError as e:
       logger.error('An error occurred while building pants.')
@@ -101,7 +105,9 @@ if __name__ == "__main__":
 
     finally:
       # Reset `PLUGIN_XML` since it has been modified.
-      subprocess.check_output('git checkout {}'.format(PLUGIN_XML), shell=True, stderr=subprocess.STDOUT)
+      subprocess.check_output(f'git checkout {PLUGIN_XML}',
+                              shell=True,
+                              stderr=subprocess.STDOUT)
 
     if args.skip_publish:
       logger.info("Publishing skipped.")
